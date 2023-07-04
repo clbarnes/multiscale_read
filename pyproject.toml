@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+write_to = "src/multiscale_read/version.py"
+
+[tool.black]
+extend-exclude = '^/src/multiscale_read/version.py'
+
+[tool.mypy]
+ignore_missing_imports = true
+python_version = "3.8"
+
+[tool.ruff]
+extend-exclude = ["docs", "venv", "^/src/multiscale_read/version.py"]
+target-version = "py38"
