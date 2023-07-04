@@ -1,17 +1,25 @@
+[tool.poetry]
+name = "multiscale-read"
+version = "0.1.0"
+description = "Read multiscale arrays with various metadata standards"
+authors = ["Chris Barnes <chrislloydbarnes@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "multiscale_read", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+zarr = "^2.15.0"
+xarray-ome-ngff = "^1.2.0"
+pydantic-ome-ngff = "^0.2.3"
+# spatial-image = "^0.3.0"
+pydantic = "^1.10"
+numpy = "^1.25.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.276"
+black = "^23.3.0"
+
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
-build-backend = "setuptools.build_meta"
-
-[tool.setuptools_scm]
-write_to = "src/multiscale_read/version.py"
-
-[tool.black]
-extend-exclude = '^/src/multiscale_read/version.py'
-
-[tool.mypy]
-ignore_missing_imports = true
-python_version = "3.8"
-
-[tool.ruff]
-extend-exclude = ["docs", "venv", "^/src/multiscale_read/version.py"]
-target-version = "py38"
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

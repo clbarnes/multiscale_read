@@ -142,3 +142,5 @@ src/multiscale_read/version.py
 
 docs/
 env/
+
+poetry.lock
