@@ -7,9 +7,6 @@ import zarr
 import xarray as xr
 import dask.array as da
 
-# required to quantify coordinate arrrays
-import pint_xarray  # noqa
-
 from .base import MultiscaleBase
 
 logger = logging.getLogger(__name__)
