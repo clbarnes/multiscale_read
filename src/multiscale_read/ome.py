@@ -73,8 +73,8 @@ def transmute_coords(coords: list[xr.DataArray]) -> list[xr.DataArray]:
             c.attrs["units"] = c.attrs["unit"]
             del c.attrs["unit"]
 
-        if "units" in c.attrs:
-            c = c.pint.quantify()
+        # if "units" in c.attrs:
+        #     c = c.pint.quantify()
         out.append(c)
     return out
 

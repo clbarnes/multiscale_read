@@ -103,8 +103,11 @@ class N5ViewerMetadata(SharedMetadata):
                     dims=(name,),
                     name=name,
                     attrs={"units": self.pixelResolution.unit},
-                ).pint.quantify()
+                )
+                # ).pint.quantify()
             )
+
+        return coords
 
     def n_scales(self) -> int:
         return len(self.scales)
@@ -176,8 +179,11 @@ class BigDataViewerMetadata(SharedMetadata):
                     dims=(name,),
                     name=name,
                     attrs={"units": self.units[n5_idx]},
-                ).pint.quantify()
+                )
+                # ).pint.quantify()
             )
+
+        return coords
 
     def n_scales(self):
         return len(self.downsamplingFactors)

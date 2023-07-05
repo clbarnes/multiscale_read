@@ -12,7 +12,7 @@ class MultiscaleBase(Sequence, ABC):
 
     @abstractmethod
     def _get_item(self, idx: int):
-        if idx not in self:
+        if not (-len(self) < idx < len(self)):
             raise IndexError("index out of range")
 
     def __getitem__(
