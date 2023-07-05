@@ -144,3 +144,4 @@ docs/
 env/
 
 poetry.lock
+tmp/

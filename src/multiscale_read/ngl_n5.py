@@ -1,28 +1,41 @@
 from typing import Optional, Union
+import logging
 
 from pydantic import BaseModel, root_validator, ValidationError
 import numpy as np
 import zarr
 import xarray as xr
+import dask.array as da
+
+# required to quantify coordinate arrrays
+import pint_xarray  # noqa
 
 from .base import MultiscaleBase
 
+logger = logging.getLogger(__name__)
+
 
 class SharedMetadata(BaseModel):
-    axes: Optional[list[str]]
-    coordinateArrays: Optional[dict[str, list[str]]]
+    """Optional neuroglancer-specific metadata."""
+
+    axes: Optional[list[str]] = None
+    coordinateArrays: Optional[dict[str, list[str]]] = None
 
     @root_validator
     def check_axes(cls, values):
-        if not values["coordinateArrays"]:
-            return
+        if not values.get("coordinateArrays"):
+            # nothing to validate
+            return values
 
-        if values["axes"] is None:
+        if values.get("axes") is None:
+            # can only reach this point if coordinateArrays given
             raise ValueError("coordinateArrays given, but no axes")
 
         for k in values["coordinateArrays"]:
             if k not in values["axes"]:
                 raise ValueError("Unknown axis")
+
+        return values
 
     def coordinate_array(self, axis: str) -> Optional[list[str]]:
         if self.axes is None or self.coordinateArrays is None:
@@ -45,7 +58,7 @@ class N5ViewerMetadata(SharedMetadata):
     @root_validator
     def check_ndim(cls, values):
         ndim = None
-        if values["axes"] is not None:
+        if values.get("axes") is not None:
             ndim = len(values["axes"])
 
         pr_ndim = len(values["pixelResolution"].dimensions)
@@ -57,6 +70,8 @@ class N5ViewerMetadata(SharedMetadata):
         for row in values["scales"]:
             if len(row) != ndim:
                 raise ValueError("Inconsistent dimensionality")
+
+        return values
 
     def ndim(self):
         return self.pixelResolution.ndim()
@@ -80,11 +95,24 @@ class N5ViewerMetadata(SharedMetadata):
                 if not name:
                     name = f"dim_{idx}"
 
-            coord_arr = np.arange(shape[idx], float) * scale[n5_idx]
+            coord_arr = np.arange(shape[idx], dtype=float) * scale[n5_idx]
             coords.append((name, coord_arr, {"units": self.pixelResolution.unit}))
+            coords.append(
+                xr.DataArray(
+                    coord_arr,
+                    dims=(name,),
+                    name=name,
+                    attrs={"units": self.pixelResolution.unit},
+                ).pint.quantify()
+            )
 
     def n_scales(self) -> int:
         return len(self.scales)
+
+    def dim_names(self) -> list[str]:
+        if self.axes is not None:
+            return self.axes[::-1]
+        return [f"dim_{n}" for n in range(self.ndim())]
 
 
 class BigDataViewerMetadata(SharedMetadata):
@@ -95,7 +123,7 @@ class BigDataViewerMetadata(SharedMetadata):
     @root_validator
     def check_ndim(cls, values):
         ndim = None
-        if values["axes"] is not None:
+        if values.get("axes") is not None:
             ndim = len(values["axes"])
 
         pr_ndim = len(values["resolution"])
@@ -110,6 +138,8 @@ class BigDataViewerMetadata(SharedMetadata):
         for row in values["downsamplingFactors"]:
             if len(row) != ndim:
                 raise ValueError("Inconsistent dimensionality")
+
+        return values
 
     def ndim(self):
         return len(self.resolution)
@@ -126,40 +156,92 @@ class BigDataViewerMetadata(SharedMetadata):
             else:
                 name = self.axes[n5_idx]
                 coord_arr = self.coordinate_array(name)
-                if coords is not None:
-                    coords.append((name, coord_arr))
+                if coord_arr is not None:
+                    coords.append(
+                        xr.DataArray(
+                            coord_arr,
+                            dims=(name,),
+                            name=name,
+                        )
+                    )
                     continue
 
-                if not name:
-                    name = f"dim_{idx}"
+            if not name:
+                name = f"dim_{idx}"
 
-            coord_arr = np.arange(shape[idx], float) * scale[n5_idx]
-            coords.append((name, coord_arr, {"unit": self.units[n5_idx]}))
+            coord_arr = np.arange(shape[idx], dtype=float) * scale[n5_idx]
+            coords.append(
+                xr.DataArray(
+                    coord_arr,
+                    dims=(name,),
+                    name=name,
+                    attrs={"units": self.units[n5_idx]},
+                ).pint.quantify()
+            )
 
     def n_scales(self):
         return len(self.downsamplingFactors)
 
+    def dim_names(self) -> list[str]:
+        if self.axes is not None:
+            return self.axes[::-1]
+        return [f"dim_{n}" for n in range(self.ndim())]
+
 
 class NglN5Multiscale(MultiscaleBase):
+    """Neuroglancer-compatible N5 multiscale dataset.
+
+    Use this for N5 scale pyramids with either BigDataViewer or n5-viewer metadata.
+    """
+
     def __init__(self, group: zarr.Group) -> None:
+        """
+        Parameters
+        ----------
+        group : zarr.Group
+            Group from N5 store with either BigDataViewer or n5-viewer
+            multiscale metadata, and N datasets named s0... s{N}.
+
+        Raises
+        ------
+        ValueError
+            If backing store is not N5.
+        ValidationError
+            If metadata is not compatible with either BigDataViewer or n5-viewer
+        """
         self.group: zarr.Group = group
         if not isinstance(self.group.store, (zarr.N5FSStore, zarr.N5Store)):
             raise ValueError("NglN5Multiscale only supported for N5 stores")
 
-        try:
-            meta = BigDataViewerMetadata.parse_obj(self.group.attrs)
-        except ValidationError:
-            meta = N5ViewerMetadata.parse_obj(self.group.attrs)
+        self.metadata: Union[BigDataViewerMetadata, N5ViewerMetadata]
 
-        self.metadata: Union[BigDataViewerMetadata, N5ViewerMetadata] = meta
+        try:
+            self.metadata = BigDataViewerMetadata.parse_obj(self.group.attrs)
+            logger.debug("Found valid BigDataViewer metadata")
+        except ValidationError:
+            self.metadata = N5ViewerMetadata.parse_obj(self.group.attrs)
+            logger.debug("Found valid N5ViewerMetadata")
+
+    @classmethod
+    def from_paths(cls, container, group: str, store_kwargs=None, group_kwargs=None):
+        if store_kwargs is None:
+            store_kwargs = dict()
+        if group_kwargs is None:
+            group_kwargs = dict()
+        store = zarr.N5FSStore(container, **store_kwargs)
+        group_kwargs.setdefault("mode", "r")
+        root = zarr.open_group(store, **group_kwargs)
+        return cls(root[group])
 
     def __len__(self) -> int:
         return self.metadata.n_scales()
 
-    def __contains__(self, idx: int) -> bool:
-        return -len(self) < idx < len(self)
-
-    def __getitem__(self, idx: int) -> xr.DataArray:
+    def _get_item(self, idx: int) -> xr.DataArray:
+        super()._get_item(idx)
         arr = self.group[f"s{idx}"]
         coords = self.metadata.to_coords(idx, arr.shape)
-        return xr.DataArray(arr, coords, name=arr.name, attrs=arr.attrs)
+        d_arr = da.from_zarr(arr)
+        return xr.DataArray(d_arr, coords, name=arr.name, attrs=arr.attrs)
+
+    def ndim(self) -> int:
+        return self.metadata.ndim()
