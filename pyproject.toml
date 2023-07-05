@@ -15,9 +15,11 @@ pydantic-ome-ngff = "^0.2.3"
 # spatial-image = "^0.3.0"
 pydantic = "^1.10"
 numpy = "^1.25.0"
-pint-xarray = "^0.3"
-fsspec = {version = "^2023.6.0", extras = ["http"]}
+fsspec = {version = "^2023.6.0", extras = ["http"], optional = true}
 dask = "^2023.6.1"
+
+[tool.poetry.extras]
+http = ["fsspec"]
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.0.276"
