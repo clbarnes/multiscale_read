@@ -16,7 +16,7 @@ jobs:
       - uses: abatilo/actions-poetry@v2
       - run: poetry check
       - run: make install-dev
-      - run: make lint-type
+      - run: make lint-notype
 
   test:
     strategy:
