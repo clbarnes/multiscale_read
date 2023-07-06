@@ -17,6 +17,7 @@ pydantic = "^1.10"
 numpy = "^1.25.0"
 fsspec = {version = "^2023.6.0", extras = ["http"], optional = true}
 dask = "^2023.6.1"
+pdoc3 = "^0.10.0"
 
 [tool.poetry.extras]
 http = ["fsspec"]

@@ -14,7 +14,8 @@ jobs:
         with:
           python-version: "3.x"
       - uses: abatilo/actions-poetry@v2
-      - run: poetry install --group dev
+      - run: poetry check
+      - run: make install-dev
       - run: make lint-type
 
   test:
@@ -30,9 +31,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - uses: abatilo/actions-poetry@v2
-      - run: poetry install --all-extras --with dev
+      - run: make install-dev
         name: Install package
-      - run: pytest --verbose
+      - run: make test
 
   deploy-package:
     runs-on: ubuntu-22.04

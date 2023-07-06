@@ -1,29 +1,28 @@
 .PHONY: format
 format:
-	ruff check --fix-only . &&\
-	black .
+	poetry run ruff check --fix-only . &&\
+	poetry run black .
 
 .PHONY: lint-notype
 lint-notype:
-	black --check .
-	ruff check .
+	poetry run black --check .
+	poetry run ruff check .
 
 .PHONY: lint
 lint: lint-notype
-	mypy .
+	poetry run mypy .
 
 .PHONY: test
 test:
-	pytest --verbose
+	poetry run pytest --verbose
 
 .PHONY: install
 install:
-	pip install .
+	poetry install --all-extras
 
 .PHONY: install-dev
 install-dev:
-	pip install -r requirements.txt &&\
-	pip install -e .
+	poetry install --all-extras --with dev
 
 .PHONY: clean-docs
 clean-docs:
@@ -32,4 +31,4 @@ clean-docs:
 .PHONY: docs
 docs: clean-docs
 	mkdir -p docs &&\
-	pdoc --html --output-dir docs multiscale_read
+	poetry run pdoc --html --output-dir docs multiscale_read
