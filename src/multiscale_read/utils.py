@@ -1,4 +1,4 @@
-from typing import Hashable, NamedTuple, Optional
+from typing import Hashable, NamedTuple, Optional, Union
 import xarray as xr
 import numpy as np
 from pydantic_ome_ngff.latest import coordinateTransformations, multiscales
@@ -89,7 +89,9 @@ class ArrayInfo(NamedTuple):
         return self._ordered(self.shape)
 
     def reverse_order(self):
-        return type(self)(self.offset, self.resolution, self.units, self.order[::-1])
+        return type(self)(
+            self.offset, self.resolution, self.units, self.shape, self.order[::-1]
+        )
 
     @classmethod
     def from_xarray(
@@ -133,4 +135,19 @@ class ArrayInfo(NamedTuple):
 
             resolution[d] = res
 
-        return cls(offset, resolution, units, order)
+        return cls(offset, resolution, units, shape, order)
+
+    @property
+    def shape_world(self) -> dict[Hashable, Union[float, int]]:
+        out = dict()
+        for k in self.order:
+            s = self.shape[k]
+            r = self.resolution[k]
+            if r is None:
+                out[k] = s
+            else:
+                out[k] = (s + 1) * r
+        return out
+
+    def ordered_shape_world(self):
+        return self._ordered(self.shape_world)

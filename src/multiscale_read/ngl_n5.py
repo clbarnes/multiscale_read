@@ -194,7 +194,8 @@ class BigDataViewerMetadata(SharedMetadata):
 class NglN5Multiscale(MultiscaleBase):
     """Neuroglancer-compatible N5 multiscale dataset.
 
-    Use this for N5 scale pyramids with either BigDataViewer or n5-viewer metadata.
+    Use this for N5 scale pyramids with either BigDataViewer or n5-viewer metadata,
+    optionally with neuroglancer extension metadata.
     """
 
     def __init__(self, group: zarr.Group) -> None:
@@ -203,7 +204,7 @@ class NglN5Multiscale(MultiscaleBase):
         ----------
         group : zarr.Group
             Group from N5 store with either BigDataViewer or n5-viewer
-            multiscale metadata, and N datasets named s0... s{N}.
+            multiscale metadata, and N datasets named s0, s2, ..., s{N-1}.
 
         Raises
         ------
