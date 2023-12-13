@@ -204,7 +204,7 @@ class NglN5Multiscale(MultiscaleBase):
         ----------
         group : zarr.Group
             Group from N5 store with either BigDataViewer or n5-viewer
-            multiscale metadata, and N datasets named s0, s2, ..., s{N-1}.
+            multiscale metadata, and N datasets named s0, s1, s2, ..., s{N-1}.
 
         Raises
         ------
